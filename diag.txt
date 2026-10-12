@@ -1,0 +1,17 @@
+=== curl test ===
+http=403 size=5924
+curl_exit=0
+<!DOCTYPE html><html lang="en-US"><head><title>Just a moment...</title><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=Edge"><meta name="robots" content="noindex,nofollow"><meta name="viewport" content="width=device-width,initial-scal
+=== python fetch ===
+7884 1 status 200 len 185792
+7884 2 status 200 len 96710
+7884 3 status 200 len 2
+7911 1 status 200 len 163230
+7911 2 status 200 len 2
+8119 1 status 200 len 29570
+8119 2 status 200 len 2
+7931 1 status 200 len 49655
+7931 2 status 200 len 2
+7935 1 status 200 len 86347
+7935 2 status 200 len 2
+TOTAL 127
