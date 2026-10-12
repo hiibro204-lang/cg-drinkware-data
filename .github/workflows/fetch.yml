@@ -1,0 +1,48 @@
+name: fetch-drinkware
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch products
+        run: |
+          python3 - <<'PY'
+          import json, urllib.request, time
+          base = "https://consortiumgifts.com/wp-json/wc/store/v1/products"
+          fields = "id,name,sku,permalink,categories,images,description"
+          cats = [7884, 7911, 8119, 7931, 7935]
+          out = {}
+          for c in cats:
+              page = 1
+              while page <= 6:
+                  url = f"{base}?per_page=100&page={page}&category={c}&_fields={fields}"
+                  req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+                  try:
+                      data = json.load(urllib.request.urlopen(req, timeout=90))
+                  except Exception as e:
+                      print("ERR", c, page, e); break
+                  if not data:
+                      break
+                  for p in data:
+                      p["_src_cat"] = c
+                      out.setdefault(str(p["id"]), p)
+                  print("cat", c, "page", page, "count", len(data))
+                  page += 1
+                  time.sleep(0.4)
+          items = list(out.values())
+          json.dump(items, open("drinkware.json", "w"), ensure_ascii=False)
+          print("TOTAL", len(items))
+          PY
+      - name: Commit
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add drinkware.json
+          git commit -m "drinkware data" || echo "nothing to commit"
+          git push
