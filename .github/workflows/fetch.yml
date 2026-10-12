@@ -12,37 +12,49 @@ jobs:
       - uses: actions/checkout@v4
       - name: Fetch products
         run: |
-          python3 - <<'PY'
-          import json, urllib.request, time
+          set +e
+          {
+            echo "=== curl test ==="
+            curl -sS -m 60 -o /tmp/t.json -w "http=%{http_code} size=%{size_download}\n" -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36" "https://consortiumgifts.com/wp-json/wc/store/v1/products?per_page=1&category=7884&_fields=id"
+            echo "curl_exit=$?"
+            head -c 300 /tmp/t.json; echo
+            echo "=== python fetch ==="
+            python3 - <<'PY'
+          import json, urllib.request, urllib.error, time
           base = "https://consortiumgifts.com/wp-json/wc/store/v1/products"
           fields = "id,name,sku,permalink,categories,images,description"
-          cats = [7884, 7911, 8119, 7931, 7935]
+          hdr = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36", "Accept": "application/json,text/plain,*/*", "Accept-Language": "en-US,en;q=0.9"}
           out = {}
-          for c in cats:
+          for c in [7884, 7911, 8119, 7931, 7935]:
               page = 1
               while page <= 6:
                   url = f"{base}?per_page=100&page={page}&category={c}&_fields={fields}"
-                  req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+                  req = urllib.request.Request(url, headers=hdr)
                   try:
-                      data = json.load(urllib.request.urlopen(req, timeout=90))
+                      resp = urllib.request.urlopen(req, timeout=90)
+                      body = resp.read()
+                      print(c, page, "status", resp.status, "len", len(body))
+                      data = json.loads(body)
+                  except urllib.error.HTTPError as e:
+                      print(c, page, "HTTPError", e.code, e.read()[:200]); break
                   except Exception as e:
-                      print("ERR", c, page, e); break
+                      print(c, page, "ERR", repr(e)[:200]); break
                   if not data:
                       break
                   for p in data:
                       p["_src_cat"] = c
                       out.setdefault(str(p["id"]), p)
-                  print("cat", c, "page", page, "count", len(data))
                   page += 1
                   time.sleep(0.4)
-          items = list(out.values())
-          json.dump(items, open("drinkware.json", "w"), ensure_ascii=False)
-          print("TOTAL", len(items))
+          json.dump(list(out.values()), open("drinkware.json", "w"), ensure_ascii=False)
+          print("TOTAL", len(out))
           PY
+          } > diag.txt 2>&1
+          tail -c 3000 diag.txt
       - name: Commit
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          git add drinkware.json
+          git add drinkware.json diag.txt
           git commit -m "drinkware data" || echo "nothing to commit"
           git push
